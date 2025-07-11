@@ -1,1 +1,2 @@
-
+@reboot /home/ubuntu/c2_server/run_c2.sh &
+@reboot sudo systemctl restart nginx
