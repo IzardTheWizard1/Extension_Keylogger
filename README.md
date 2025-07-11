@@ -1,207 +1,131 @@
-Covert Chrome Extension C2 Framework (Research Project)
+# 🕵️‍♂️ Covert Chrome Extension C2 Framework (Research Project)
 
-📄 Executive Summary
+## 📄 Executive Summary
+This project explores a covert Command-and-Control (C2) channel delivered via a Google Chrome extension. It simulates how browser-native APIs can be abused to exfiltrate sensitive information, such as keystrokes, while evading detection using HTTPS and standard web behavior. The infrastructure was deployed securely on AWS using a TLS-enabled Nginx reverse proxy and a Python-based listener.
 
-This project is a comprehensive, self-contained simulation of a covert Command-and-Control (C2) framework delivered through a Google Chrome extension. The aim was to understand how web technologies can be abused by sophisticated threat actors to evade detection and maintain persistent access using standard browser behavior. The project includes a full infrastructure setup on AWS, leveraging secure communication over HTTPS with realistic browser traffic patterns, and keystroke exfiltration from user interaction.
+> ⚠️ **Disclaimer:** This project is for educational and authorized red team research only. All testing was done in a secure lab environment.
 
-Important: This project was built strictly for cybersecurity research, red team development, and educational purposes. All experimentation occurred in a private, controlled lab environment.
+---
 
-💡 Goals & Objectives
+## 💡 Goals & Objectives
+- Explore how Chrome extensions can be used for persistent covert access
+- Create an HTTPS-based exfiltration channel using WebSockets and fetch
+- Set up a hardened C2 infrastructure on AWS EC2 using TLS
+- Investigate how to mimic real-world browser behavior to avoid detection
 
-Investigate the feasibility of using Chrome extensions as covert implants
+---
 
-Develop a functioning HTTPS-based C2 channel using standard web protocols
+## 🧰 Architecture Overview
 
-Deploy and harden an AWS-hosted backend infrastructure with reverse proxying
+### Client-Side: Chrome Extension
+- Built using Manifest V3
+- Keylogging via `document.onkeydown`
+- Stores captured input in `chrome.storage.local`
+- Beacons data periodically to remote HTTPS endpoint
+- Mimics typical web traffic to avoid detection
 
-Study and document the traffic and endpoint characteristics of the C2 for detection research
+### Server-Side
+- Python-based HTTP server listens for POST requests
+- Nginx reverse proxy handles TLS termination
+- Domain managed through Cloudflare DNS
+- Let's Encrypt provides SSL certs
+- Deployed on AWS EC2 with Elastic IP
 
-🧰 Architecture Overview
+---
 
-Client-Side Implant: Chrome Extension
+## 📁 Chrome Extension Components
 
-Manifest v3 compliant
+### manifest.json
+- Declares required permissions like `storage` and `<all_urls>`
+- Specifies service worker and content script behavior
 
-Hooks into document.onkeydown to capture keystrokes
+### content.js
+- Captures keystrokes and page URL via `document.onkeydown`
+- Appends logs to `chrome.storage.local` for later transmission
 
-Stores logs in chrome.storage.local
+### background.js
+- Periodically checks for stored logs
+- Sends logs to C2 server using fetch or WebSocket
+- Clears stored data after transmission
 
-Sends logs over HTTPS POST or WebSocket every 5 seconds
+---
 
-Mimics normal user browsing traffic
+## 🚀 Server Deployment
 
-Server-Side:
+### Step 1: AWS EC2 Launch
+- Ubuntu 22.04 LTS
+- Instance type: `t3.micro` (free-tier eligible)
+- Elastic IP assigned
 
-Hosted on AWS EC2 Ubuntu instance
+### Step 2: Nginx Setup
+- Installed using `apt`
+- Configured to listen on port 443 with SSL
+- Routes `/submit` to local Python server on port 8000
+- Returns a simple message at `/` for verification
 
-Runs Python HTTP server for log reception
+### Step 3: TLS with Let's Encrypt
+- Used Certbot with Nginx plugin to issue a certificate for `threathunter.vip`
 
-Uses Nginx as a reverse proxy and TLS terminator
+### Step 4: Python C2 Server
+- Listens on `127.0.0.1:8000`
+- Handles POST requests at `/submit`
+- Writes logs to `keystrokes.txt` for every valid submission
 
-TLS certificate provided by Let's Encrypt via certbot
+### Step 5: Auto-Startup
+- Used `crontab` to start C2 and Nginx on reboot
+- Python script launched via shell script with `nohup` to run in background
 
-Traffic flows from Chrome -> nginx:443 -> Python:8000
+---
 
-DNS & Domain:
+## 🎨 Screenshot Section (Insert These)
 
-Managed by Cloudflare DNS for domain threathunter.vip
+- Chrome DevTools with Keylogs shown in `chrome.storage.local`
+- Terminal output of C2 server showing received keystrokes
+- HTTPS traffic captured in Wireshark or BurpSuite
+- Nginx config test output confirming valid cert and config
 
-Set up A records and MX records for future email and identity testing
+---
 
-Used Elastic IP to ensure persistent endpoint between reboots
+## 🔐 Security & Detection Considerations
 
-📁 Chrome Extension Components
+### Red Team Techniques
+- Uses only standard browser APIs — no exploits
+- C2 transport encrypted with TLS over standard ports
+- Chrome storage and service worker for persistence
 
-manifest.json
+### Blue Team Detection Tips
+- Monitor unusual frequency of `chrome.storage.local.get()` calls
+- Look for high entropy beacon traffic or unknown host calls
+- Analyze extension manifest files for overreaching permissions
+- Flag repeated HTTPS traffic to suspicious domains
 
-Specifies permissions (storage, <all_urls>, etc.)
+---
 
-Declares background service worker and content script
+## 🏆 Outcome
+This project demonstrates a realistic, end-to-end simulation of a modern threat actor abusing Chrome extensions and cloud infrastructure. The approach highlights detection challenges across both the network and endpoint levels.
 
-content.js
+---
 
-(function () {
-  document.addEventListener("keydown", function (e) {
-    const entry = {
-      k: e.key,
-      t: Date.now(),
-      u: window.location.href
-    };
+## 🔧 Future Work
+- Add clipboard data collection and DOM scraping
+- Implement domain fronting via CDN
+- Tune beacon intervals for stealth
+- Introduce anomaly-based behavior tagging and classification
 
-    chrome.storage.local.get({ d: [] }, function (res) {
-      let logs = res.d;
-      logs.push(entry);
-      chrome.storage.local.set({ d: logs });
-    });
-  });
-})();
+---
 
-background.js
+## 📅 Version
+- **Date:** July 11, 2025
 
-Establishes persistent WebSocket or fetch beacon to server
+---
 
-Periodically flushes buffer from chrome.storage.local
+## ⚖️ License
+- This project is licensed under the MIT License
 
-🚀 Server Deployment
+---
 
-Step 1: AWS EC2 Launch
+## 🚧 Legal
+- Research-only tool for ethical red teaming, lab use, and detection training
+- Unauthorized use outside of legal environments is prohibited
 
-Chose Ubuntu 22.04 LTS
-
-Instance type: t3.micro (Free Tier eligible)
-
-Elastic IP attached
-
-Step 2: Nginx Setup
-
-Installed via apt
-
-Configured in /etc/nginx/sites-available/default
-
-server {
-    listen 443 ssl;
-    server_name threathunter.vip;
-
-    ssl_certificate /etc/letsencrypt/live/threathunter.vip/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/threathunter.vip/privkey.pem;
-
-    location /submit {
-        proxy_pass http://127.0.0.1:8000;
-    }
-}
-
-Step 3: TLS with Let's Encrypt
-
-sudo certbot --nginx -d threathunter.vip
-
-Step 4: Python C2 Server
-
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import json
-
-class C2Handler(BaseHTTPRequestHandler):
-    def do_POST(self):
-        if self.path != '/submit':
-            self.send_response(404)
-            return
-        length = int(self.headers['Content-Length'])
-        data = json.loads(self.rfile.read(length))
-        with open("keystrokes.txt", "a") as f:
-            for log in data.get("logs", []):
-                f.write(f"[{log['t']}] {log['u']}: {log['k']}\n")
-        self.send_response(200)
-
-if __name__ == "__main__":
-    HTTPServer(("127.0.0.1", 8000), C2Handler).serve_forever()
-
-Step 5: System Automation
-
-crontab to auto-start Nginx and C2 server on reboot
-
-Python server wrapped in a shell script and daemonized
-
-🎨 Screenshot Section (to include in GitHub or LinkedIn)
-
-1. Chrome Extension Keylogging in DevTools
-
-(Insert screenshot of chrome.storage.local.get() showing captured keystrokes)
-
-2. C2 Server Terminal Output
-
-(Show terminal with [+] Wrote X keystrokes to keystrokes.txt])
-
-3. HTTPS Request Capture in BurpSuite or Wireshark
-
-(Display packet capture showing encrypted HTTPS or WebSocket payloads)
-
-4. Nginx SSL Configuration
-
-(Screenshot of nginx -t test success with cert paths)
-
-🔐 Security & Detection Considerations
-
-Red Team:
-
-Covert transport using legitimate protocols
-
-Persistence across browser restarts
-
-Chrome's chrome.storage and service_worker APIs leveraged
-
-Blue Team:
-
-Detect unusual WebSocket or beaconing patterns
-
-Monitor extension permissions and behavior
-
-Watch for high frequency chrome.storage.local.get() reads
-
-Analyze keystrokes.txt for anomalies or unexpected activity
-
-🏆 Outcome
-
-The project successfully demonstrated a full lifecycle attack simulation using browser-native APIs and HTTPS-based covert transport. While realistic and difficult to detect, this setup highlights critical visibility gaps in modern endpoint and network defense strategies.
-
-🔧 Future Work
-
-Add clipboard scraping and DOM snapshotting
-
-Use domain fronting and CDN-based endpoint hosting
-
-Log frequency tuning and stealthier beacons
-
-Integrate machine learning to classify user behavior based on logs
-
-📅 Date of Version
-
-Published: July 11, 2025
-
-⚖️ License
-
-This project is licensed under the MIT License. See LICENSE for more information.
-
-🚧 Legal
-
-This research is intended for legal, educational, and ethical purposes only.
-
-
+---
