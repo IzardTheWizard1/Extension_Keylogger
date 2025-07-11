@@ -1,1 +1,11 @@
+# Python dependencies
 
+# System packages required on Ubuntu:
+# - nginx
+# - certbot
+# - python3
+# - python3-pip
+# - python3-venv
+
+# Python modules:
+# No extra pip packages are needed for this script
